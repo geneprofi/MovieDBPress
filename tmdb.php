@@ -14,6 +14,9 @@ if ( ! defined( 'TMDB_PLUGIN_URL' ) )
 if ( ! defined( 'TMDB_PLUGIN_BASE' ) )
 	define( 'TMDB_PLUGIN_BASE', basename( __FILE__ ) );
 
+if ( ! defined( 'TMDB_PLUGIN_CACHE_TIME' ) )
+	define( 'TMDB_PLUGIN_CACHE_TIME', 3600 );
+
 add_image_size( 'tmdb-thumb', 150, 150, false ); // natural size within a box
 
 class tmdb_api {
@@ -93,7 +96,7 @@ class tmdb_api {
 			$url_hash = 'tmdb_' . md5( $url . serialize( $args ) );
 
 			// check cache
-			//if ( false === ( $response = get_transient( $url_hash ) ) ) {
+			if ( false === ( $response = get_transient( $url_hash ) ) ) {
 
 				if ( $request == 'get' ) {
 					$response = wp_remote_get( $url );
@@ -110,17 +113,18 @@ class tmdb_api {
 
 				// if not an error code set the transient
 				$xml = new SimpleXMLElement( $response );
-				$json = json_encode( $xml ); // horribles hacks due to broken JSON encoding in API responses
+				$json = json_encode( $xml ); // nasty way of getting JSON back until the API encoding bugs are fixed
 				$rsp = $xml;
 
 				// cache result
 				if ( isset( $rsp->status ) && $rsp->status->code == 1 && $this->cache ) {
-					set_transient( $url_hash, $response, 3600 ); // cache the json for 1 hour
-				// set an error
+					set_transient( $url_hash, $response, TMDB_PLUGIN_CACHE_TIME ); // cache the response for 1 hour
+				// or set an error
 				} elseif ( isset( $rsp->status ) ) {
 					$error = new WP_Error( $rsp->status->code, $this->codes( $rsp->status->code ), $rsp );
 				}
-			//}
+
+			}
 
 			// check response status
 			if ( $this->format == 'json' )
@@ -255,17 +259,6 @@ class tmdb_api {
 		if ( ! $post_id )
 			return;
 
-		//if ( $this->format == 'json' ) {
-		//
-		//	$movie_data = json_decode( get_post_meta( $post_id, 'tmdb_movie_data', true ) );
-		//
-		//	$movie_data = $movie_data[0];
-		//
-		//	if ( ! empty( $key ) && property_exists( $movie_data, $key ) )
-		//		return $movie_data->$key;
-		//
-		//}
-
 		$movie_data = get_post_meta( $post_id, 'tmdb_movie_data', true );
 		if ( is_string( $movie_data ) && ! empty( $movie_data ) ) {
 			$movie_data = new SimpleXMLElement( $movie_data );
@@ -341,6 +334,7 @@ function tmdb_test_key( $api_key ) {
 	return sanitize_key( $api_key );
 }
 
+// plugin settings link
 add_filter( 'plugin_action_links', 'tmdb_add_settings_link', 10, 2 );
 function tmdb_add_settings_link( $links, $file ) {
 	if ( $file == plugin_basename( __FILE__ ) )
@@ -353,7 +347,7 @@ function tmdb_activate() {
 
 }
 
-
+// create movies post type and taxonomies - movie can be deregistered
 add_action( 'init', 'tmdb_init' );
 function tmdb_init() {
 
@@ -703,12 +697,13 @@ function ajax_media_sideload_image() {
 
 	$latest = array_shift( $attachments );
 
+	// add attachment id as html attrib for custom js
 	echo '<span class="img-wrap">'. wp_get_attachment_image( $latest->ID, $size, false, array( 'data-attachment-id' => $latest->ID ) ) .'</span>';
 	die();
 
 }
 
-
+// use a one shot class to save as we're calling save_post action within it from update_post
 class tmdb_save_post {
 
 	var $done = false;
