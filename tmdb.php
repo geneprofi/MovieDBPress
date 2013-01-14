@@ -62,7 +62,7 @@ class tmdb_api {
 		$this->api = new TMDb( $this->api_key, $this->language, false, TMDb::API_SCHEME );
 
 		// store TMDb config
-		if ( ! $this->config = get_transient( 'tmdb_config' ) && $this->get( 'api_key' ) ) {
+		if ( ! is_object( $this->config = get_transient( 'tmdb_config' ) ) && $this->get( 'api_key' ) ) {
 			$this->config = $this->a2o( $this->api->getConfiguration() );
 			set_transient( 'tmdb_config', $this->config, (30*24*60*60) );
 		}
@@ -487,9 +487,10 @@ class tmdb_api {
 
 			<div class="tmdb-region">
 				<h4>Release region:</h4>
-				<p>Select a country to set movie certificate and release date</p>
+				<p>Select a country to set movie certificate and release date if available. Otherwise you'll need to do it manually.</p>
 				<select name="tmdb_release_country">
-				<?php foreach( $movie_data->releases->countries as $release ) { ?>
+				<?php foreach( $movie_data->releases->countries as $release ) {
+					if ( ! isset( $release->certification ) || empty( $release->certification ) ) continue; ?>
 					<option value="<?php echo $release->iso_3166_1; ?>" <?php selected( $release->iso_3166_1, $movie_country ); ?>>
 						<?php echo ucwords( strtolower( $this->iso_3166_1_to_text( $release->iso_3166_1 ) ) ) . ' (' . $release->certification . ')'; ?></option>
 				<?php } ?>
@@ -1075,6 +1076,783 @@ class tmdb_api {
 		if ( array_key_exists( $code, $codes ) )
 			return $codes[ $code ];
 		return false;
+
+
+		// Locale to country code ISO 639_9 <-> 3661_1
+
+		//Afrikaans
+		//
+		//af
+		//
+		//Icelandic
+		//
+		//is
+		//
+		//Afrikaans - South Africa
+		//
+		//af-ZA
+		//
+		//Icelandic - Iceland
+		//
+		//is-IS
+		//
+		//Albanian
+		//
+		//sq
+		//
+		//Indonesian
+		//
+		//id
+		//
+		//Albanian - Albania
+		//
+		//sq-AL
+		//
+		//Indonesian - Indonesia
+		//
+		//id-ID
+		//
+		//Arabic
+		//
+		//ar
+		//
+		//Italian
+		//
+		//it
+		//
+		//Arabic - Algeria
+		//
+		//ar-DZ
+		//
+		//Italian - Italy
+		//
+		//it-IT
+		//
+		//Arabic – Bahrain
+		//
+		//ar-BH
+		//
+		//Italian - Switzerland
+		//
+		//it-CH
+		//
+		//Arabic – Egypt
+		//
+		//ar-EG
+		//
+		//Japanese
+		//
+		//ja
+		//
+		//Arabic – Iraq
+		//
+		//ar-IQ
+		//
+		//Japanese - Japan
+		//
+		//ja-JP
+		//
+		//Arabic – Jordan
+		//
+		//ar-JO
+		//
+		//Kannada
+		//
+		//kn
+		//
+		//Arabic – Kuwait
+		//
+		//ar-KW
+		//
+		//Kannada - India
+		//
+		//kn-IN
+		//
+		//Arabic – Lebanon
+		//
+		//ar-LB
+		//
+		//Kazakh
+		//
+		//kk
+		//
+		//Arabic – Libya
+		//
+		//ar-LY
+		//
+		//Kazakh - Kazakhstan
+		//
+		//kk-KZ
+		//
+		//Arabic - Morocco
+		//
+		//ar-MA
+		//
+		//Korean
+		//
+		//ko
+		//
+		//Arabic - Oman
+		//
+		//ar-OM
+		//
+		//Korean - Korea
+		//
+		//ko-KR
+		//
+		//Arabic - Qatar
+		//
+		//ar-QA
+		//
+		//Kyrgyz
+		//
+		//ky
+		//
+		//Arabic - Saudi Arabia
+		//
+		//ar-SA
+		//
+		//Kyrgyz - Kyrgyzstan
+		//
+		//ky-KG
+		//
+		//Arabic - Syria
+		//
+		//ar-SY
+		//
+		//Latvian
+		//
+		//lv
+		//
+		//Arabic - Tunisia
+		//
+		//ar-TN
+		//
+		//Latvian - Latvia
+		//
+		//lv-LV
+		//
+		//Arabic - United Arab Emirates
+		//
+		//ar-AE
+		//
+		//Lithuanian
+		//
+		//lt
+		//
+		//Arabic - Yemen
+		//
+		//ar-YE
+		//
+		//Lithuanian - Lithuania
+		//
+		//lt-LT
+		//
+		//Armenian
+		//
+		//hy
+		//
+		//Macedonian
+		//
+		//mk
+		//
+		//Armenian - Armenia
+		//
+		//hy-AM
+		//
+		//Macedonian - Former Yugoslav Republic of Macedonia
+		//
+		//mk-MK
+		//
+		//Azeri
+		//
+		//az
+		//
+		//Malay
+		//
+		//ms
+		//
+		//Azeri - Azerbaijan
+		//
+		//az-AZ
+		//
+		//Malay - Brunei
+		//
+		//ms-BN
+		//
+		//Basque
+		//
+		//eu
+		//
+		//Malay - Malaysia
+		//
+		//ms-MY
+		//
+		//Basque - Basque
+		//
+		//eu-ES
+		//
+		//Marathi
+		//
+		//mr
+		//
+		//Belarusian
+		//
+		//be
+		//
+		//Marathi - India
+		//
+		//mr-IN
+		//
+		//Belarusian - Belarus
+		//
+		//be-BY
+		//
+		//Mongolian
+		//
+		//mn
+		//
+		//Bulgarian
+		//
+		//bg
+		//
+		//Mongolian - Mongolia
+		//
+		//mn-MN
+		//
+		//Bulgarian - Bulgaria
+		//
+		//bg-BG
+		//
+		//Norwegian
+		//
+		//no
+		//
+		//Catalan
+		//
+		//ca
+		//
+		//Norwegian (Bokmål) - Norway
+		//
+		//nb-NO
+		//
+		//Catalan - Spain
+		//
+		//ca-ES
+		//
+		//Norwegian (Nynorsk) - Norway
+		//
+		//nn-NO
+		//
+		//Chinese
+		//
+		//zh
+		//
+		//Polish
+		//
+		//pl
+		//
+		//Chinese - Hong Kong SAR
+		//
+		//zh-HK
+		//
+		//Polish - Poland
+		//
+		//pl-PL
+		//
+		//Chinese - Macao SAR
+		//
+		//zh-MO
+		//
+		//Portuguese
+		//
+		//pt
+		//
+		//Chinese - China (Simplified Chinese)
+		//
+		//zh-CN
+		//
+		//Portuguese - Brazil
+		//
+		//pt-BR
+		//
+		//Chinese - Singapore
+		//
+		//zh-SG
+		//
+		//Portuguese - Portugal
+		//
+		//pt-PT
+		//
+		//Chinese - Taiwan (Traditional Chinese)
+		//
+		//zh-TW
+		//
+		//Punjabi
+		//
+		//pa
+		//
+		//Croatian
+		//
+		//hr
+		//
+		//Punjabi - India
+		//
+		//pa-IN
+		//
+		//Croatian - Croatia
+		//
+		//hr-HR
+		//
+		//Romanian
+		//
+		//ro
+		//
+		//Czech
+		//
+		//cs
+		//
+		//Romanian - Romania
+		//
+		//ro-RO
+		//
+		//Czech - Czech Republic
+		//
+		//cs-CZ
+		//
+		//Russian
+		//
+		//ru
+		//
+		//Danish
+		//
+		//da
+		//
+		//Russian - Russia
+		//
+		//ru-RU
+		//
+		//Danish - Denmark
+		//
+		//da-DK
+		//
+		//Sanskrit
+		//
+		//sa
+		//
+		//Dutch
+		//
+		//nl
+		//
+		//Sanskrit - India
+		//
+		//sa-IN
+		//
+		//Dutch - Belgium
+		//
+		//nl-BE
+		//
+		//Serbian
+		//
+		//sr
+		//
+		//Dutch - The Netherlands
+		//
+		//nl-NL
+		//
+		//Serbian - Serbia
+		//
+		//sr-SP
+		//
+		//English
+		//
+		//en
+		//
+		//Slovak
+		//
+		//sk
+		//
+		//English - Australia
+		//
+		//en-AU
+		//
+		//Slovak - Slovakia
+		//
+		//sk-SK
+		//
+		//English - Belize
+		//
+		//en-BZ
+		//
+		//Slovenian
+		//
+		//sl
+		//
+		//English - Canada
+		//
+		//en-CA
+		//
+		//Slovenian - Slovenia
+		//
+		//sl-SI
+		//
+		//English - Caribbean
+		//
+		//en-CB
+		//
+		//Spanish
+		//
+		//es
+		//
+		//English - Ireland
+		//
+		//en-IE
+		//
+		//Spanish - Argentina
+		//
+		//es-AR
+		//
+		//English - Jamaica
+		//
+		//en-JM
+		//
+		//Spanish - Bolivia
+		//
+		//es-BO
+		//
+		//English - New Zealand
+		//
+		//en-NZ
+		//
+		//Spanish - Chile
+		//
+		//es-CL
+		//
+		//English - Philippines
+		//
+		//en-PH
+		//
+		//Spanish - Colombia
+		//
+		//es-CO
+		//
+		//English - South Africa
+		//
+		//en-ZA
+		//
+		//Spanish - Costa Rica
+		//
+		//es-CR
+		//
+		//English - Trinidad and Tobago
+		//
+		//en-TT
+		//
+		//Spanish - Dominican Republic
+		//
+		//es-DO
+		//
+		//English - United Kingdom
+		//
+		//en-GB
+		//
+		//Spanish - Ecuador
+		//
+		//es-EC
+		//
+		//English - United States
+		//
+		//en-US
+		//
+		//Spanish - El Salvador
+		//
+		//es-SV
+		//
+		//English - Zimbabwe
+		//
+		//en-ZW
+		//
+		//Spanish - Guatemala
+		//
+		//es-GT
+		//
+		//Estonian
+		//
+		//et
+		//
+		//Spanish - Honduras
+		//
+		//es-HN
+		//
+		//Estonian - Estonia
+		//
+		//et-EE
+		//
+		//Spanish - Mexico
+		//
+		//es-MX
+		//
+		//Faroese
+		//
+		//fo
+		//
+		//Spanish - Nicaragua
+		//
+		//es-NI
+		//
+		//Faroese - Faroe Islands
+		//
+		//fo-FO
+		//
+		//Spanish - Panama
+		//
+		//es-PA
+		//
+		//Farsi
+		//
+		//fa
+		//
+		//Spanish - Paraguay
+		//
+		//es-PY
+		//
+		//Farsi - Iran
+		//
+		//fa-IR
+		//
+		//Spanish - Peru
+		//
+		//es-PE
+		//
+		//Finnish
+		//
+		//fi
+		//
+		//Spanish - Puerto Rico
+		//
+		//es-PR
+		//
+		//Finnish - Finland
+		//
+		//fi-FI
+		//
+		//Spanish - Spain
+		//
+		//es-ES
+		//
+		//French
+		//
+		//fr
+		//
+		//Spanish - Uruguay
+		//
+		//es-UY
+		//
+		//French - Belgium
+		//
+		//fr-BE
+		//
+		//Spanish - Venezuela
+		//
+		//es-VE
+		//
+		//French - Canada
+		//
+		//fr-CA
+		//
+		//Swahili
+		//
+		//sw
+		//
+		//French - France
+		//
+		//fr-FR
+		//
+		//Swahili - Kenya
+		//
+		//sw-KE
+		//
+		//French - Luxembourg
+		//
+		//fr-LU
+		//
+		//Swedish
+		//
+		//sv
+		//
+		//French - Monaco
+		//
+		//fr-MC
+		//
+		//Swedish - Finland
+		//
+		//sv-FI
+		//
+		//French - Switzerland
+		//
+		//fr-CH
+		//
+		//Swedish - Sweden
+		//
+		//sv-SE
+		//
+		//Galician
+		//
+		//gl
+		//
+		//Tamil
+		//
+		//ta
+		//
+		//Galician - Galician
+		//
+		//gl-ES
+		//
+		//Tamil - India
+		//
+		//ta-IN
+		//
+		//Georgian
+		//
+		//ka
+		//
+		//Tatar
+		//
+		//tt
+		//
+		//Georgian - Georgia
+		//
+		//ka-GE
+		//
+		//Tatar - Russia
+		//
+		//tt-RU
+		//
+		//German
+		//
+		//de
+		//
+		//Telugu
+		//
+		//te
+		//
+		//German - Austria
+		//
+		//de-AT
+		//
+		//Telugu - India
+		//
+		//te-IN
+		//
+		//German - Germany
+		//
+		//de-DE
+		//
+		//Thai
+		//
+		//th
+		//
+		//German - Liechtenstein
+		//
+		//de-LI
+		//
+		//Thai - Thailand
+		//
+		//th-TH
+		//
+		//German - Luxembourg
+		//
+		//de-LU
+		//
+		//Turkish
+		//
+		//tr
+		//
+		//German - Switzerland
+		//
+		//de-CH
+		//
+		//Turkish - Turkey
+		//
+		//tr-TR
+		//
+		//Greek
+		//
+		//el
+		//
+		//Ukrainian
+		//
+		//uk
+		//
+		//Greek - Greece
+		//
+		//el-GR
+		//
+		//Ukrainian - Ukraine
+		//
+		//uk-UA
+		//
+		//Gujarati
+		//
+		//gu
+		//
+		//Urdu
+		//
+		//ur
+		//
+		//Gujarati - India
+		//
+		//gu-IN
+		//
+		//Urdu - Pakistan
+		//
+		//ur-PK
+		//
+		//Hebrew
+		//
+		//he
+		//
+		//Uzbek
+		//
+		//uz
+		//
+		//Hebrew - Israel
+		//
+		//he-IL
+		//
+		//Uzbek - Uzbekistan
+		//
+		//uz-UZ
+		//
+		//Hindi
+		//
+		//hi
+		//
+		//Vietnamese
+		//
+		//vi
+		//
+		//Hindi - India
+		//
+		//hi-IN
+		//
+		//Vietnamese - Vietnam
+		//
+		//vi-VN
+		//
+		//Hungarian
+		//
+		//hu
+		//
+		//
+		//
+		//
+		//
+		//Hungarian - Hungary
+		//
+		//hu-HU
+
+
 	}
 
 }
