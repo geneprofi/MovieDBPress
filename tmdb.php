@@ -72,7 +72,7 @@ class tmdb_api {
 		add_action( 'admin_init', array( $this, 'admin_init' ) );
 
 		// display hooks
-		add_filter( 'post_class', array( $this, 'tmdb_post_class' ), 10, 3 );
+		add_filter( 'post_class', array( $this, 'post_class' ), 10, 3 );
 
 		// plugin settings link
 		add_filter( 'plugin_action_links', array( $this, 'add_settings_link' ), 10, 2 );
