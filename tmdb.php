@@ -80,6 +80,7 @@ class tmdb_api {
 		// auto populate taxonomies
 		add_action( 'save_post', array( $this, 'save' ), 10, 2 );
 		add_action( 'wp_ajax_media_sideload_image', array( $this, 'ajax_media_sideload_image' ) );
+		add_action( 'wp_ajax_tmdb_finished_download', array( $this, 'ajax_finished_download' ) );
 
 	}
 
@@ -442,6 +443,7 @@ class tmdb_api {
 		$movie_trailers = get_post_meta( $post->ID, 'tmdb_movie_trailers' );
 		$movie_trailer = get_post_meta( $post->ID, 'tmdb_movie_trailer', true );
 		$movie_country = get_post_meta( $post->ID, 'tmdb_movie_country', true );
+		$movie_images = get_post_meta( $post->ID, 'tmdb_movie_images', true );
 
 		?>
 		<p><?php _e( 'Enter the movie title and click go to grab images and info.' ); ?></p>
@@ -500,57 +502,76 @@ class tmdb_api {
 
 			<div class="tmdb-images-wrap">
 				<h4>Images:</h4>
+				<?php if ( ! $movie_images ) { ?>
 				<p id="tmdb-get-images-wrap">
 					<?php printf( __( 'There are %d poster images and %d backdrops for this movie' ), count( $posters ), count( $backdrops ) ); ?>
 					<input id="tmdb-get-images" class="button" type="submit" name="tmdb_get_images" value="<?php _e( 'Grab images' ); ?>" />
 				</p>
-				<p><?php _e( 'Once the images have been downloaded you can set one as your featured image or insert them into the post as you want.' ); ?></p>
-				<div id="tmdb-images"></div>
-			</div>
-			<script>
-				(function($){
-					var images = [ "<?php
-						echo implode( '","', $backdrops );
-						echo '","';
-						echo implode( '","', $posters );
-					?>" ],
-						num = 0,
-						getting_images = false;
-					$( '#tmdb-get-images' ).click( function() {
-						$( this ).attr( 'disabled', 'disabled' ).attr( 'value', 'Fetching...' ).after( ' <img class="loader" src="images/wpspin_light.gif" alt="" />' );
-						getting_images = true;
-						get_next_image();
-						return false;
-					} );
-
-					function get_next_image() {
-						$.post( ajaxurl, {
-							action: 'media_sideload_image',
-							url: images[num],
-							post_id: <?php echo $post->ID; ?>,
-							size: 'tmdb-thumb',
-							_wpnonce: '<?php echo wp_create_nonce( 'media_sideload_image-' . $post->ID ); ?>'
-						}, function( data ) {
-							if ( data != 0 ) {
-								$( '#tmdb-images' ).append( data );
-							}
-							if ( num == images.length - 1 ) {
-								$( '#tmdb-get-images-wrap' ).remove();
-								getting_images = false;
-							} else {
-								num++;
-								get_next_image();
-							}
+				<script>
+					(function($){
+						var images = [ "<?php
+							echo implode( '","', $backdrops );
+							echo '","';
+							echo implode( '","', $posters );
+						?>" ],
+							num = 0,
+							getting_images = false;
+						$( '#tmdb-get-images' ).click( function() {
+							$( this ).attr( 'disabled', 'disabled' ).attr( 'value', 'Fetching...' ).after( ' <img class="loader" src="images/wpspin_light.gif" alt="" />' );
+							getting_images = true;
+							get_next_image();
+							return false;
 						} );
-					}
 
-					// prevent user navigating away while images downloading
-					$( document ).bind( 'unload', function(e) {
-						if ( getting_images )
-							return confirm( 'Are you sure want to navigate away? The images are still downloading.' );
-					} );
-				})(jQuery);
-			</script>
+						function get_next_image() {
+							$.post( ajaxurl, {
+								action: 'media_sideload_image',
+								url: images[num],
+								post_id: <?php echo $post->ID; ?>,
+								size: 'tmdb-thumb',
+								_wpnonce: '<?php echo wp_create_nonce( 'media_sideload_image-' . $post->ID ); ?>'
+							}, function( data ) {
+								if ( data != 0 ) {
+									$( '#tmdb-images' ).append( data );
+								}
+								// finished downloading
+								if ( num == images.length - 1 ) {
+									$( '#tmdb-get-images-wrap' ).remove();
+									getting_images = false;
+									image_ids = [];
+									$( '#tmdb-images img[data-attachment-id]' ).each(function(){
+										image_ids.push( $(this).data('attachment-id') );
+									});
+									$.post( ajaxurl, {
+										action: 'tmdb_finished_download',
+										images: image_ids,
+										post_id: <?php echo $post->ID; ?>
+									} );
+								// keep going
+								} else {
+									num++;
+									get_next_image();
+								}
+							} );
+						}
+
+						// prevent user navigating away while images downloading
+						$( document ).bind( 'unload', function(e) {
+							if ( getting_images )
+								return confirm( 'Are you sure want to navigate away? The images are still downloading.' );
+						} );
+					})(jQuery);
+				</script>
+				<?php } ?>
+				<p><?php _e( 'Once the images have been downloaded you can set one as your featured image or insert them into the post as you want via the add media button.' ); ?></p>
+				<div id="tmdb-images">
+					<?php if ( ! empty( $movie_images ) ) {
+						foreach( $movie_images as $image_id ) {
+							echo '<span class="img-wrap">'. wp_get_attachment_image( intval( $image_id ), 'tmdb-thumb', false, array( 'data-attachment-id' => $image_id ) ) .'</span>';
+						}
+					} ?>
+				</div>
+			</div>
 
 			<div id="tmdb-trailer-wrap">
 				<h4>Trailer:</h4>
@@ -612,6 +633,25 @@ class tmdb_api {
 		// add attachment id as html attrib for custom js
 		echo '<span class="img-wrap">'. wp_get_attachment_image( $latest->ID, $size, false, array( 'data-attachment-id' => $latest->ID ) ) .'</span>';
 		die();
+
+	}
+
+
+	// rememeber which images we got
+	function ajax_finished_download() {
+
+		$post_id = intval( $_POST[ 'post_id' ] );
+		if ( $post_id ) {
+
+			$images = array_filter( $_POST[ 'images' ], function( $id ) {
+				return intval( $id ) > 0;
+			} );
+
+			// store attachment IDs of images we downloaded
+			if ( ! empty( $images ) )
+				update_post_meta( $post_id, 'tmdb_movie_images', $images );
+
+		}
 
 	}
 
