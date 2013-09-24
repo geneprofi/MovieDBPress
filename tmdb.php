@@ -705,6 +705,18 @@ class tmdb_api {
 			update_post_meta( $post_id, 'tmdb_movie_id', $movie_id );
 			update_post_meta( $post_id, 'tmdb_movie_data', $movie_data );
 
+			if ( $movie_data && ! empty( $movie_data->imdb_id ) ) {
+				// try using the omdb API
+				$omdb_json = wp_remote_get( 'http://www.omdbapi.com/?i=' . $movie_data->imdb_id );
+				if ( ! is_wp_error( $omdb_json ) ) {
+					$omdb = json_decode( $omdb_json[ 'body' ] );
+					if ( empty( $movie_data->overview ) )
+						$movie_data->overview = $omdb->Plot;
+					if ( empty( $movie_data->runtime ) )
+						$movie_data->runtime = $omdb->Runtime;
+				}
+			}
+
 			// sometimes the API goes 'meh'
 			try {
 
