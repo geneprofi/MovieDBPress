@@ -683,6 +683,7 @@ class tmdb_api {
 			delete_post_meta( $post_id, 'tmdb_movie_country' );
 			delete_post_meta( $post_id, 'tmdb_movie_certificate' );
 			delete_post_meta( $post_id, 'tmdb_movie_release_date' );
+			delete_post_meta( $post_id, 'tmdb_movie_images' );
 
 			if ( ! is_wp_error( $movies ) ) {
 				update_post_meta( $post_id, 'tmdb_movie_search', $movie_search );
@@ -763,10 +764,12 @@ class tmdb_api {
 				// this will take us back to the movies list at least
 				delete_post_meta( $post_id, 'tmdb_movie_id' );
 				delete_post_meta( $post_id, 'tmdb_movie_data' );
+				delete_post_meta( $post_id, 'tmdb_movie_trailer' );
+				delete_post_meta( $post_id, 'tmdb_movie_trailers' );
 				delete_post_meta( $post_id, 'tmdb_movie_country' );
 				delete_post_meta( $post_id, 'tmdb_movie_certificate' );
 				delete_post_meta( $post_id, 'tmdb_movie_release_date' );
-				delete_post_meta( $post_id, 'tmdb_movie_trailers' );
+				delete_post_meta( $post_id, 'tmdb_movie_images' );
 
 			}
 
